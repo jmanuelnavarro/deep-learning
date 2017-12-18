@@ -1,5 +1,32 @@
 import numpy as np
 
+######################################################
+##  DELETE - DATA PREPARATION
+#####################################################
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+data_path = 'Bike-Sharing-Dataset/hour.csv'
+
+rides = pd.read_csv(data_path)
+print(rides.head())
+
+rides1 = rides[:24*10]
+rides1.plot(x='dteday',y='cnt')
+
+#convert categorical values into dummy variables
+dummy_fields = ['season', 'weathersit', 'mnth', 'hr', 'weekday']
+for each in dummy_fields:
+    dummies = pd.get_dummies(rides[each], prefix=each, drop_first=False)
+    rides = pd.concat([rides, dummies], axis=1)
+
+fields_to_drop = ['instant', 'dteday', 'season', 'weathersit', 
+                  'weekday', 'atemp', 'mnth', 'workingday', 'hr']
+data = rides.drop(fields_to_drop, axis=1)
+data.head()
+
+######################################################
 
 class NeuralNetwork(object):
     def __init__(self, input_nodes, hidden_nodes, output_nodes, learning_rate):
