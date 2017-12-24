@@ -3,6 +3,7 @@ import numpy as np
 ######################################################
 ##  DELETE - DATA PREPARATION
 #####################################################
+'''
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -15,7 +16,7 @@ print(rides.head())
 rides1 = rides[:24*10]
 rides1.plot(x='dteday',y='cnt')
 
-#convert categorical values into dummy variables
+#CATEGORICAL VALUES -> Binary Dummy Variables
 dummy_fields = ['season', 'weathersit', 'mnth', 'hr', 'weekday']
 for each in dummy_fields:
     dummies = pd.get_dummies(rides[each], prefix=each, drop_first=False)
@@ -26,6 +27,32 @@ fields_to_drop = ['instant', 'dteday', 'season', 'weathersit',
 data = rides.drop(fields_to_drop, axis=1)
 data.head()
 
+#CONTINUOUS VARIABLES -> Standardize / Scale
+quant_features = ['casual', 'registered', 'cnt', 'temp', 'hum', 'windspeed']
+# Store scalings in a dictionary so we can convert back later
+scaled_features = {}
+for each in quant_features:
+    mean, std = data[each].mean(), data[each].std()
+    scaled_features[each] = [mean, std]
+    data.loc[:, each] = (data[each] - mean)/std
+
+#SPLIT DATA INTO TRAINING / TESTING AND VALIDATION DATASETS
+# Save data for approximately the last 21 days 
+test_data = data[-21*24:]
+
+# Now remove the test data from the data set 
+data = data[:-21*24]
+
+# Separate the data into features and targets
+target_fields = ['cnt', 'casual', 'registered']
+features, targets = data.drop(target_fields, axis=1), data[target_fields]
+test_features, test_targets = test_data.drop(target_fields, axis=1), test_data[target_fields]
+
+# Hold out the last 60 days or so of the remaining data as a validation set
+train_features, train_targets = features[:-60*24], targets[:-60*24]
+val_features, val_targets = features[-60*24:], targets[-60*24:]
+
+'''
 ######################################################
 
 class NeuralNetwork(object):
@@ -47,14 +74,15 @@ class NeuralNetwork(object):
         #
         # Note: in Python, you can define a function with a lambda expression,
         # as shown below.
-        self.activation_function = lambda x : 0  # Replace 0 with your sigmoid calculation.
-        
+        self.activation_function = lambda x : 1 / (1 + np.exp(-x))  # Replace 0 with your sigmoid calculation.
+        # Activation function for the output layer f(x) = x
+        self.activation_function_output = lambda x : x 
         ### If the lambda code above is not something you're familiar with,
         # You can uncomment out the following three lines and put your 
         # implementation there instead.
         #
         #def sigmoid(x):
-        #    return 0  # Replace 0 with your sigmoid calculation here
+        #    return 1/(1+np.exp(x))  # Replace 0 with your sigmoid calculation here
         #self.activation_function = sigmoid
                     
 
@@ -88,15 +116,20 @@ class NeuralNetwork(object):
             X: features batch
 
         '''
+        
+ 
+        #output = sigmoid(np.dot(hidden_output,weights_hidden_output))
+        
+        
         #### Implement the forward pass here ####
         ### Forward pass ###
         # TODO: Hidden layer - Replace these values with your calculations.
-        hidden_inputs = None # signals into hidden layer
-        hidden_outputs = None # signals from hidden layer
+        hidden_inputs = np.dot(X,self.weights_input_to_hidden) # signals into hidden layer
+        hidden_outputs = self.activation_function(hidden_inputs) # signals from hidden layer
 
         # TODO: Output layer - Replace these values with your calculations.
-        final_inputs = None # signals into final output layer
-        final_outputs = None # signals from final output layer
+        final_inputs = np.dot(hidden_outputs,self.weights_hidden_to_output) # signals into final output layer
+        final_outputs = self.activation_function_output(final_inputs) # signals from final output layer
         
         return final_outputs, hidden_outputs
 
@@ -115,20 +148,28 @@ class NeuralNetwork(object):
         ### Backward pass ###
 
         # TODO: Output error - Replace this value with your calculations.
-        error = None # Output layer error is the difference between desired target and actual output.
+        error = (y - final_outputs) # Output layer error is the difference between desired target and actual output.
         
         # TODO: Calculate the hidden layer's contribution to the error
-        hidden_error = None
+        # As output activation functions derivative = 1, output error term = error (see below)
+        hidden_error = error * self.weights_hidden_to_output
         
         # TODO: Backpropagated error terms - Replace these values with your calculations.
-        output_error_term = None
-        
-        hidden_error_term = None
+        # Derivative of output activation function f(x)=x -> f_prime = 1
+        output_error_term = error * 1
+        # Activation function for hidden layer = sigmoid
+        #hidden_error_term = hidden_outputs * (1 - hidden_outputs)
+        hidden_outputs = hidden_outputs[:, None]
+        #hidden_outputs = hidden_outputs.reshape()
+        hidden_error_term = hidden_error * hidden_outputs * (1 - hidden_outputs)
         
         # Weight step (input to hidden)
-        delta_weights_i_h += None
+        #xx=X[:, None]
+        #temp=hidden_error_term * X
+        #temp=temp.T
+        delta_weights_i_h += (hidden_error_term * X).T
         # Weight step (hidden to output)
-        delta_weights_h_o += None
+        delta_weights_h_o += output_error_term * hidden_outputs
         return delta_weights_i_h, delta_weights_h_o
 
     def update_weights(self, delta_weights_i_h, delta_weights_h_o, n_records):
@@ -141,9 +182,8 @@ class NeuralNetwork(object):
             n_records: number of records
 
         '''
-        self.weights_hidden_to_output += None # update hidden-to-output weights with gradient descent step
-        self.weights_input_to_hidden += None # update input-to-hidden weights with gradient descent step
-
+        self.weights_hidden_to_output += self.lr * delta_weights_h_o # update hidden-to-output weights with gradient descent step
+        self.weights_input_to_hidden += self.lr * delta_weights_i_h # update input-to-hidden weights with gradient descent step     
     def run(self, features):
         ''' Run a forward pass through the network with input features 
         
@@ -154,12 +194,12 @@ class NeuralNetwork(object):
         
         #### Implement the forward pass here ####
         # TODO: Hidden layer - replace these values with the appropriate calculations.
-        hidden_inputs = None # signals into hidden layer
-        hidden_outputs = None # signals from hidden layer
+        hidden_inputs = np.dot(features,self.weights_input_to_hidden) # signals into hidden layer
+        hidden_outputs = self.activation_function(hidden_inputs) # signals from hidden layer
         
         # TODO: Output layer - Replace these values with the appropriate calculations.
-        final_inputs = None # signals into final output layer
-        final_outputs = None # signals from final output layer 
+        final_inputs = np.dot(hidden_outputs,self.weights_hidden_to_output) # signals into final output layer
+        final_outputs = self.activation_function_output(final_inputs) # signals from final output layer 
         
         return final_outputs
 
@@ -167,7 +207,60 @@ class NeuralNetwork(object):
 #########################################################
 # Set your hyperparameters here
 ##########################################################
-iterations = 100
-learning_rate = 0.1
-hidden_nodes = 2
-output_nodes = 1
+iterations = 300 #Original value = 100
+learning_rate = 0.01 #Original value = 0.1
+hidden_nodes = 4 #Original value = 2
+output_nodes = 1 #Original value = 1
+
+
+######################################################
+##  DELETE - UNIT TESTING
+#####################################################
+'''
+inputs = np.array([[0.5, -0.2, 0.1]])
+targets = np.array([[0.4]])
+test_w_i_h = np.array([[0.1, -0.2],
+                       [0.4, 0.5],
+                       [-0.3, 0.2]])
+test_w_h_o = np.array([[0.3],
+                       [-0.1]])
+network = NeuralNetwork(3, 2, 1, 0.5)
+network.weights_input_to_hidden = test_w_i_h.copy()
+network.weights_hidden_to_output = test_w_h_o.copy()
+        
+network.train(inputs, targets)
+print('fin')
+'''
+
+'''
+self.assertTrue(np.allclose(network.weights_hidden_to_output, 
+                                    np.array([[ 0.37275328], 
+                                              [-0.03172939]])))
+self.assertTrue(np.allclose(network.weights_input_to_hidden,
+                                    np.array([[ 0.10562014, -0.20185996], 
+                                              [0.39775194, 0.50074398], 
+                                              [-0.29887597, 0.19962801]])))
+'''
+'''
+N_i = train_features.shape[1]
+network = NeuralNetwork(N_i, hidden_nodes, output_nodes, learning_rate)
+
+losses = {'train':[], 'validation':[]}
+for ii in range(iterations):
+    # Go through a random batch of 128 records from the training data set
+    batch = np.random.choice(train_features.index, size=128)
+    X, y = train_features.ix[batch].values, train_targets.ix[batch]['cnt']
+                             
+    network.train(X, y)
+    
+    # Printing out the training progress
+    train_loss = MSE(network.run(train_features).T, train_targets['cnt'].values)
+    val_loss = MSE(network.run(val_features).T, val_targets['cnt'].values)
+    sys.stdout.write("\rProgress: {:2.1f}".format(100 * ii/float(iterations)) \
+                     + "% ... Training loss: " + str(train_loss)[:5] \
+                     + " ... Validation loss: " + str(val_loss)[:5])
+    sys.stdout.flush()
+    
+    losses['train'].append(train_loss)
+    losses['validation'].append(val_loss)
+'''
