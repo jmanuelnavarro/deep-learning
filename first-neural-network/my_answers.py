@@ -182,8 +182,8 @@ class NeuralNetwork(object):
             n_records: number of records
 
         '''
-        self.weights_hidden_to_output += self.lr * delta_weights_h_o # update hidden-to-output weights with gradient descent step
-        self.weights_input_to_hidden += self.lr * delta_weights_i_h # update input-to-hidden weights with gradient descent step     
+        self.weights_hidden_to_output += (self.lr * delta_weights_h_o)/n_records # update hidden-to-output weights with gradient descent step
+        self.weights_input_to_hidden += (self.lr * delta_weights_i_h)/n_records # update input-to-hidden weights with gradient descent step     
     def run(self, features):
         ''' Run a forward pass through the network with input features 
         
@@ -207,40 +207,15 @@ class NeuralNetwork(object):
 #########################################################
 # Set your hyperparameters here
 ##########################################################
-iterations = 300 #Original value = 100
-learning_rate = 0.01 #Original value = 0.1
-hidden_nodes = 4 #Original value = 2
+iterations = 8000 #Original value = 100
+learning_rate = 0.4 #Original value = 0.1
+hidden_nodes = 15 #Original value = 2 
 output_nodes = 1 #Original value = 1
 
 
 ######################################################
-##  DELETE - UNIT TESTING
+##  DELETE - TESTING
 #####################################################
-'''
-inputs = np.array([[0.5, -0.2, 0.1]])
-targets = np.array([[0.4]])
-test_w_i_h = np.array([[0.1, -0.2],
-                       [0.4, 0.5],
-                       [-0.3, 0.2]])
-test_w_h_o = np.array([[0.3],
-                       [-0.1]])
-network = NeuralNetwork(3, 2, 1, 0.5)
-network.weights_input_to_hidden = test_w_i_h.copy()
-network.weights_hidden_to_output = test_w_h_o.copy()
-        
-network.train(inputs, targets)
-print('fin')
-'''
-
-'''
-self.assertTrue(np.allclose(network.weights_hidden_to_output, 
-                                    np.array([[ 0.37275328], 
-                                              [-0.03172939]])))
-self.assertTrue(np.allclose(network.weights_input_to_hidden,
-                                    np.array([[ 0.10562014, -0.20185996], 
-                                              [0.39775194, 0.50074398], 
-                                              [-0.29887597, 0.19962801]])))
-'''
 '''
 N_i = train_features.shape[1]
 network = NeuralNetwork(N_i, hidden_nodes, output_nodes, learning_rate)
