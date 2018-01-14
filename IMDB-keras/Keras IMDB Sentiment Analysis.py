@@ -40,7 +40,7 @@ from keras.datasets import imdb
 tokenizer = Tokenizer(num_words=1000)
 x_train = tokenizer.sequences_to_matrix(x_train, mode='binary')
 x_test = tokenizer.sequences_to_matrix(x_test, mode='binary')
-print(x_train[0])
+print(x_train.shape[0])
 # One-hot encoding the output
 num_classes = 2
 y_train = keras.utils.to_categorical(y_train, num_classes)
@@ -51,17 +51,20 @@ print(y_test.shape)
 # BUILD KERAS MODEL
 # Model definition
 model = Sequential()
-model.add(Dense(32, input_dim=x_train.shape[0]))
+model.add(Dense(32, input_dim=x_train.shape[1]))
 model.add(Activation('sigmoid'))
-model.add(Dense(1))
+# 2 nodes in the output layer because output are 2 columns array
+model.add(Dense(2))
 model.add(Activation('sigmoid'))
+model.summary()
 # Mdodel compilation
 model.compile(loss="categorical_crossentropy", optimizer="adam", metrics = ["accuracy"])
 
 # MODEL TRAINING
-model.fit(x_train, y_train, epochs=200, verbose=0)
+model.fit(x_train, y_train, epochs=80, verbose=2, batch_size=50)
 
 # MODEL EVALUATION
-model.evaluate('accuracy')
+score = model.evaluate(x_test, y_test, verbose=0)
+print("Accuracy: ", score[1])
 
 
